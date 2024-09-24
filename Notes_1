@@ -1,0 +1,75 @@
+    // Configurar el componente Sensor como RootComponent
+    Sensor = CreateDefaultSubobject<UBoxComponent>(TEXT("Sensor"));
+    RootComponent = Sensor;
+    Sensor->InitBoxExtent(FVector(50.0f, 50.0f, 50.0f)); // Configurar tamaño del sensor
+	// Añadir delegado para el evento de colisión
+    Sensor->OnComponentBeginOverlap.AddDynamic(this, &AWeaponBase::OnOverlapBegin);
+
+    // Crear el componente Skeletal Mesh y adjuntarlo al sensor
+    WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
+    WeaponMesh->SetupAttachment(Sensor);
+
+    // Crear el componente Arrow para el punto de inicio del disparo
+    FirePoint = CreateDefaultSubobject<UArrowComponent>(TEXT("FirePoint"));
+    FirePoint->SetupAttachment(WeaponMesh);
+    FirePoint->SetRelativeLocation(FVector(0.0f, 80.0f, 10.0f)); // Ajustar la posición del Arrow
+    FirePoint->SetRelativeRotation(FRotator(0.0f, 90.f, 0.0f)); // Ajustar la rotación del arrow
+
+	// Crear el componente Arrow para el punto de salida de casquillos
+	ShellCasingPoint = CreateDefaultSubobject<UArrowComponent>(TEXT("ShellCasingPoint"));
+	ShellCasingPoint->SetupAttachment(WeaponMesh);
+	ShellCasingPoint->SetRelativeLocation(FVector(3.0f, 30.0f, 10.0f)); // Ajustar la posición del Arrow
+    ShellCasingPoint->SetRelativeRotation(FRotator(20.0f, 180.f, 0.0f)); // Ajustar la rotación del arrow
+
+    // Inicializar las variables
+    WeaponType = EWeaponTypeEnum::EWT_None;
+    CurrentAmmo = 0;
+
+Función InitializedWeaponData()
+
+void AWeaponBase::InitializedWeaponData()
+{
+    if (!WeaponDataTable)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("WeaponDataTable is not set in %s"), *GetName());
+        return;
+    }
+
+    // Buscar los datos correspondientes al tipo de arma
+    static const FString ContextString(TEXT("Weapon Data Context"));
+    FName RowName = FName(*UEnum::GetValueAsString(SetWeapon)); // Obtener el nombre de la fila y guardarlo en RowName
+
+    // Buscar la fila correspondiente al tipo de arma
+    FWeaponTypeStruct* WeaponDataRow = WeaponDataTable->FindRow<FWeaponTypeStruct>(RowName, ContextString);
+    if (WeaponDataRow)
+    {
+        WeaponDataStruct = *WeaponDataRow;
+        // CurrentAmmo = 21;
+        if (WeaponMesh)
+        {
+            WeaponMesh->SetSkeletalMesh(WeaponDataStruct.WeaponMesh); // Actualizar el mesh
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Weapon data for %s not found in DataTable"), *RowName.ToString());
+    }
+}
+
+
+PostEditChangeProperty()
+void AWeaponBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+    // Llamar a la función de la clase base
+    Super::PostEditChangeProperty(PropertyChangedEvent);
+
+    // Obtener el nombre de la propiedad que ha cambiado
+    FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+
+    // Comprobar si la propiedad que ha cambiado es WeaponType
+    if (PropertyName == GET_MEMBER_NAME_CHECKED(AWeaponBase, SetWeapon))
+    {
+        // Inicializar los datos del arma
+        InitializedWeaponData(); // Llamar a la función para actualizar los datos
+    }
+}
